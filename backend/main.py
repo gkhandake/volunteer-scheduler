@@ -29,7 +29,7 @@ async def generate_schedule(
 ):
     try:
         # Parse inputs
-        location_list = json.loads(locations)
+        location_list = [loc.strip() for loc in json.loads(locations)]
         day_list = json.loads(days)
         
         # Read CSV file

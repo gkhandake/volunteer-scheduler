@@ -39,3 +39,11 @@ V11,v11@example.com,Expo Hall,second
 V12,v12@example.com,Expo Hall,first
 V13,v13@example.com,Expo Hall,second
 V14,v14@example.com,Expo Hall,first
+Dirty Dave,dave@dirty.com, expo hall , FIRST 
+Messy Martha,martha@messy.com,Expo Hall,Second 
+Casing Carl,carl@case.com,EXPO HALL,fiRSt
+Invalid Ida,ida@invalid.com,Expo Hall,morning
+Empty Ed,ed@empty.com,Finish Line,
+Missing Molly,molly@missing.com,,first
+Spaces Sue,sue@spaces.com, Finish Line , second
+Mixed Max,max@mixed.com, finish LINE , fIRST

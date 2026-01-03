@@ -24,7 +24,7 @@ def create_schedule(volunteers: List[Volunteer], config: SchedulerConfig) -> Ful
                 # Filter volunteers matching this location and slot who haven't been assigned yet
                 eligible_volunteers = [
                     v for v in volunteers 
-                    if v.location == location and v.slot.lower() == slot_type.lower() and v.email not in assigned_volunteer_emails
+                    if v.location.lower() == location.lower() and v.slot.lower() == slot_type.lower() and v.email not in assigned_volunteer_emails
                 ]
                 
                 # Calculate alphabet ranges for desks

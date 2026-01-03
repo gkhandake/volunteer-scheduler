@@ -9,12 +9,15 @@ def parse_volunteer_csv(content: str) -> List[Volunteer]:
     volunteers = []
     
     # Expected columns: name, email, location, slot
+    # Drop rows with missing critical information
+    df = df.dropna(subset=['name', 'email', 'location', 'slot'])
+    
     for _, row in df.iterrows():
         volunteers.append(Volunteer(
-            name=str(row['name']),
-            email=str(row['email']),
-            location=str(row['location']),
-            slot=str(row['slot'])
+            name=str(row['name']).strip(),
+            email=str(row['email']).strip(),
+            location=str(row['location']).strip(),
+            slot=str(row['slot']).strip().lower()
         ))
     
     return volunteers
