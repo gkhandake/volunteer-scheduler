@@ -75,6 +75,131 @@ function App() {
     }
   };
 
+  const calculateMetrics = (fullScheduleData) => {
+    let totalSlots = 0;
+    let assignedCount = 0;
+    let volunteerEmails = new Set();
+
+    fullScheduleData.forEach(loc => {
+      loc.days.forEach(day => {
+        day.slots.forEach(slot => {
+          slot.assignments.forEach(asgn => {
+            // Assume we know numVolsPerDesk and numDesks from the import?
+            // Actually, we can count slots by looking at assignments.
+            totalSlots += 1; // This is per desk-slot (usually 2 vols)
+            // But metrics look at actual volunteer counts.
+            asgn.volunteers.forEach(v => {
+              if (v.name !== "Unassigned") {
+                assignedCount += 1;
+                volunteerEmails.add(v.email);
+              }
+            });
+          });
+        });
+      });
+    });
+
+    // Note: totalSlots in backend metrics is desks * vols_per_desk * locs * days * 2.
+    // In imported CSV, we can infer some of this.
+    const uniqueLocs = new Set(fullScheduleData.map(l => l.location)).size;
+    const uniqueDays = new Set(fullScheduleData.flatMap(l => l.days.map(d => d.day))).size;
+    const maxDesks = Math.max(...fullScheduleData.flatMap(l => l.days.flatMap(d => d.slots.flatMap(s => s.assignments.map(a => a.desk)))));
+
+    // Try to guess vols_per_desk by looking at a populated slot
+    let volsPerDeskGuess = 2;
+    for (let loc of fullScheduleData) {
+      for (let day of loc.days) {
+        for (let slot of day.slots) {
+          for (let asgn of slot.assignments) {
+            if (asgn.volunteers.length > 0) {
+              volsPerDeskGuess = Math.max(volsPerDeskGuess, asgn.volunteers.length);
+            }
+          }
+        }
+      }
+    }
+
+    const totalToFill = uniqueLocs * uniqueDays * 2 * maxDesks * volsPerDeskGuess;
+    const coverage = (assignedCount / totalToFill) * 100;
+
+    return {
+      total_volunteers_available: volunteerEmails.size,
+      total_slots_to_fill: totalToFill,
+      assigned_volunteers_count: assignedCount,
+      unassigned_slots_count: Math.max(0, totalToFill - assignedCount),
+      surplus_volunteers_count: 0, // Hard to know from export
+      coverage_percentage: parseFloat(coverage.toFixed(1))
+    };
+  };
+
+  const handleImportCSV = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target.result;
+      const lines = text.split("\n").filter(l => l.trim() !== "");
+
+      // Skip header
+      if (lines[0].includes("Location,Day,Slot")) lines.shift();
+
+      const flatData = lines.map(line => {
+        // Simple CSV parser for quoted values
+        const matches = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+        if (!matches) return null;
+        return matches.map(m => m.replace(/^"|"$/g, ""));
+      }).filter(Boolean);
+
+      const nested = {}; // loc -> day -> slot -> desk -> { alphabet_range, volunteers }
+
+      flatData.forEach(cols => {
+        if (cols.length < 7) return;
+        const [loc, day, slot, deskStr, alpha, name, email] = cols;
+        const desk = parseInt(deskStr.replace("Desk ", ""));
+
+        if (!nested[loc]) nested[loc] = {};
+        if (!nested[loc][day]) nested[loc][day] = {};
+        if (!nested[loc][day][slot]) nested[loc][day][slot] = {};
+        if (!nested[loc][day][slot][desk]) {
+          nested[loc][day][slot][desk] = { alphabet_range: alpha, volunteers: [] };
+        }
+        if (name !== "Unassigned") {
+          nested[loc][day][slot][desk].volunteers.push({ name, email, location: loc, slot: slot });
+        }
+      });
+
+      const schedules = Object.keys(nested).map(locName => ({
+        location: locName,
+        days: Object.keys(nested[locName]).map(dayName => ({
+          day: dayName,
+          slots: ["first", "second"].map(slotType => ({
+            slot_type: slotType,
+            assignments: Object.keys(nested[locName][dayName][slotType] || {}).map(deskNum => ({
+              desk: parseInt(deskNum),
+              alphabet_range: nested[locName][dayName][slotType][deskNum].alphabet_range,
+              volunteers: nested[locName][dayName][slotType][deskNum].volunteers
+            })).sort((a, b) => a.desk - b.desk)
+          })).filter(s => s.assignments.length > 0)
+        }))
+      }));
+
+      const fullSchedule = {
+        schedules,
+        metrics: calculateMetrics(schedules)
+      };
+
+      setSchedule(fullSchedule);
+      if (fullSchedule.schedules.length > 0 && fullSchedule.schedules[0].days.length > 0) {
+        setActiveDay(fullSchedule.schedules[0].days[0].day);
+      }
+      setError(null);
+    };
+    reader.readAsText(file);
+    // Reset file input
+    e.target.value = null;
+  };
+
   const exportToCSV = () => {
     if (!schedule) return;
 
@@ -233,6 +358,21 @@ function App() {
                 {loading ? '⏳ Generating...' : '🚀 Generate Schedule'}
               </button>
             </form>
+          </div>
+
+          <div className="card mt-1">
+            <div className="card-header">
+              <h2>📄 Import Schedule</h2>
+            </div>
+            <div className="input-group">
+              <label>Upload Exported CSV</label>
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleImportCSV}
+              />
+              <p className="helper-text">View a previously exported schedule dashboard.</p>
+            </div>
           </div>
           {error && <div className="error" style={{ marginTop: '1rem' }}>{error}</div>}
         </aside>

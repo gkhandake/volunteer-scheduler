@@ -10,9 +10,11 @@
 }
 
 * {
-  margin: 0;
-  padding: 0;
   box-sizing: border-box;
+}
+
+.mt-1 {
+  margin-top: 1rem;
 }
 
 body {
@@ -109,6 +111,13 @@ body {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+}
+
+.helper-text {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+  font-style: italic;
 }
 
 .selected-days-list {
