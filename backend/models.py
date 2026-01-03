@@ -31,5 +31,14 @@ class LocationSchedule(BaseModel):
     location: str
     days: List[DaySchedule]
 
+class ScheduleMetrics(BaseModel):
+    total_volunteers_available: int
+    total_slots_to_fill: int
+    assigned_volunteers_count: int
+    unassigned_slots_count: int
+    surplus_volunteers_count: int
+    coverage_percentage: float
+
 class FullSchedule(BaseModel):
     schedules: List[LocationSchedule]
+    metrics: Optional[ScheduleMetrics] = None

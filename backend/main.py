@@ -45,8 +45,37 @@ async def generate_schedule(
         
         # Generate schedule
         schedule = create_schedule(volunteers, config)
+        
+        # Calculate Metrics
+        total_vols_available = len(volunteers)
+        total_slots_to_fill = len(config.locations) * len(config.days) * 2 * config.num_desks * config.vols_per_desk
+        assigned_count = 0
+        unfilled_capacity = 0
+        
+        for loc_sched in schedule.schedules:
+            for day_sched in loc_sched.days:
+                for slot_sched in day_sched.slots:
+                    for asgn in slot_sched.assignments:
+                        assigned_count += len(asgn.volunteers)
+        
+        unfilled_capacity = total_slots_to_fill - assigned_count
+        surplus = total_vols_available - assigned_count
+        coverage = (assigned_count / total_slots_to_fill * 100) if total_slots_to_fill > 0 else 100
+        
+        from models import ScheduleMetrics
+        schedule.metrics = ScheduleMetrics(
+            total_volunteers_available=total_vols_available,
+            total_slots_to_fill=total_slots_to_fill,
+            assigned_volunteers_count=assigned_count,
+            unassigned_slots_count=unfilled_capacity,
+            surplus_volunteers_count=max(0, surplus),
+            coverage_percentage=round(coverage, 1)
+        )
+        
         return schedule
     except Exception as e:
+        import traceback
+        print(traceback.format_exc())
         raise HTTPException(status_code=400, detail=str(e))
 
 if __name__ == "__main__":
